@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<head>
+  <title> Org Mindmap Live </title>
+  <!-- <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/d3@6"></script> -->
+  <!-- <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/markmap-view"></script> -->
+  <script type="text/javascript" src="js/d3@7.js"></script>
+  <script type="text/javascript" src="js/markmap-view.js"></script>
+  <style type="text/css">
+    #app {
+        font-family: Avenir, Helvetica, Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-align: center;
+        color: #2c3e50;
+        /* margin-top: 60px; */
+        width: 100%;
+        height: 100%;
+    }
+
+    mindmap {
+        width: 100%;
+        height: 100%;
+    }
+
+    html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <svg id="markmap" style="width: 100%; height: 100%"></svg>
+
+  <script type="text/javascript">
+    function setup_ws () {
+        console.log("Starting the websocket...")
+        let conn = new WebSocket("ws://127.0.0.1:12302")
+        let old_data = null;
+        console.log(conn)
+        conn.onmessage = function (event) {
+            // console.log(event)
+            if (event.data.length && event.data != old_data) {
+                // console.log(event.data)
+                old_data = event.data;
+                let obj = JSON.parse(event.data)
+                console.log(obj)
+                window.markmap.setData(obj)
+                window.markmap.fit()
+            }
+        },
+        conn.onopen = function (event) {
+            console.log("Websocket connection established.")
+            console.log(event)
+        }
+        window.ws = {
+            conn: conn,
+            sendMsg: function (msg) {
+                this.conn.send(msg)
+            }
+        }
+    }
+
+    function setup_mindmap () {
+        // load with <script>
+        const { markmap } = window
+        const { Markmap, loadCSS, loadJS } = markmap
+
+        // 1. load assets
+        // if (styles) loadCSS(styles)
+        // if (scripts) loadJS(scripts, { getMarkmap: () => markmap })
+
+        // 2. create markmap
+        // `options` is optional, i.e. `undefined` can be passed here
+        window.markmap = Markmap.create('#markmap', null, {
+            t: "heading",
+            v: "Demo",
+            c: [{
+                t: "heading",
+                c: [],
+                v: "Child 1",
+                p: null,
+                d: 20
+            },
+            {
+                t: "heading",
+                c: [],
+                v: "Child 2",
+                p: null,
+                d: 1
+            },
+               ],
+            p: null,
+            d: 1})
+    }
+
+    setup_mindmap()
+    setup_ws()
+    setInterval(function () {
+        window.ws.sendMsg("update")
+    }, 500)
+
+  </script>
+
+
+</body>
+</html>

@@ -3,13 +3,17 @@
 
 (require 'websocket)
 (require 'org-element)
+(require 'elnode)
 
 ;;; Code:
 
 (defun org-mindmap-live/build-node (node children)
   "Generate a NODE with CHILDREN."
-  `((name . ,node)
-    (children . ,children))
+  `((t . "heading")  ; type
+    (v . ,node)      ; label
+    (d . 1)          ; depth
+    (p . nil)        ; depth
+    (c . ,children)) ; children
   )
 
 (defun org-mindmap-live/export-hl-subtree (hl)
@@ -29,7 +33,7 @@
         (let ((parent (org-element-property :parent hl)))
           (unless (eq (org-element-type parent) 'headline)
             (setq top-nodes (vconcat top-nodes (vector (org-mindmap-live/export-hl-subtree hl))))))))
-    (vector (org-mindmap-live/build-node "Main" top-nodes))))
+    (org-mindmap-live/build-node "Main" top-nodes)))
 
 (defun org-mindmap-live/export-json ()
   "Export json of org doc."
@@ -45,10 +49,11 @@
 
 (defun org-mindmap-live/ws-on-message (ws frame)
   "Handle message of FRAME on WS."
-  (print (websocket-frame-text frame)
+  ;; (print (websocket-frame-text frame))
   (let ((json (org-mindmap-live/export-current-org-to-json)))
-    (message json)
-    (websocket-send-text ws json))))
+    ;; (message json)
+    (ignore-errors
+      (websocket-send-text ws json))))
 
 (defun org-mindmap-live/ws-on-close (ws frame)
   "Handle message of FRAME on WS."
@@ -74,6 +79,22 @@
        :on-message #'org-mindmap-live/ws-on-message))
 
 ;; (websocket-send-text org-mindmap-live/ws-server-conn "HILO")
+
+(elnode-stop 12301)
+
+(defvar org-mindmap-live/httpd-routes
+  `(
+    ("js/d3@7.js" . ,(elnode-make-send-file "./js/d3@7.js"))
+    ("js/markmap-view.js" . ,(elnode-make-send-file "./js/markmap-view.js"))
+    ("/" . ,(elnode-make-send-file "./App.html"))))
+(defun org-mindmap-live/httpd-handler (httpcon)
+  "The handler to serve html mindmap file through HTTPCON."
+  ;; (elnode-http-start httpcon 200 '("Content-type" . "text/html"))
+  ;; (elnode-send-file httpcon "./App.html")
+  (elnode-hostpath-dispatcher httpcon org-mindmap-live/httpd-routes))
+
+(elnode-start #'org-mindmap-live/httpd-handler :port 12301 :host "localhost")
+
 
 (provide 'org-mindmap-live)
 ;;; org-mindmap-live.el ends here
