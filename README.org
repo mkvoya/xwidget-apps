@@ -1,0 +1,10 @@
+* org-mindmap-live
+
+The project is in early alpha.
+
+## How to use
+
+Evaluate the `org-mindmap-live.el` file and open http://localhost:12301 with `xwidget-webkit-browse-url`.
+Of course you can also use your own browser.
+
+Note that the mind map only changes if the current Emacs buffer is in the org major-mode.
