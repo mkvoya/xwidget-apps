@@ -1,21 +1,20 @@
 <template>
-  <mindmap v-model="data" drag zoom></mindmap>
+  <mindmap v-model="data" drag zoom edit></mindmap>
   <!-- <button v-on:click="sendMsg('hi')"> send msg </button> -->
 </template>
 
 <script>
 import mindmap from 'vue3-mindmap'
 import 'vue3-mindmap/dist/style.css'
+import { defineComponent } from 'vue'
 
-export default {
-    name: 'MindMap',
+export default defineComponent({
+    name: 'App',
     components: {
         mindmap
     },
-    data: function () {
-        return {
-            conn: null,
-            data: [{
+    setup() {
+        const data = [{
                 "name":"如何学习D3",
                 "children": [
                     {
@@ -33,11 +32,21 @@ export default {
                     { "name":"进阶", "left": true },
                 ]
             }]
+        return {
+            conn: null,
+            data: data
         }
     },
     methods: {
         sendMsg: function (msg) {
             this.conn.send(msg)
+        },
+        setData: function (data) {
+            this.data = data
+            console.log(this.mindmap)
+            this.$forceUpdate()
+            // this.$emit('mmdata', new ImData(cloneDeep(this.data[0]), 10, 10, getSize))
+            console.log(data)
         },
         addNode: function (node) {
             this.data[0].children.push({ "name": node })
@@ -48,16 +57,23 @@ export default {
         this.conn = new WebSocket("ws://127.0.0.1:12302")
         console.log(this.conn)
 
+        let vm = this;
+
         this.conn.onmessage = function (event) {
             console.log(event)
-            this.addNode(event)
-        }
+            if (event.data.length) {
+                console.log(event.data)
+                let obj = JSON.parse(event.data)
+                console.log(obj)
+                vm.setData(obj)
+            }
+        },
         this.conn.onopen = function (event) {
             console.log("Websocket connection established.")
             console.log(event)
         }
     }
-}
+})
 </script>
 
 <style>
