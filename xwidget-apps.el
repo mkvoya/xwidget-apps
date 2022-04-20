@@ -6,6 +6,7 @@
 (require 'websocket)
 (require 'org-element)
 (require 'elnode)
+(require 'xwidget)
 
 ;;; Code:
 
@@ -107,6 +108,8 @@
 
   (elnode-start #'xwidget-apps/httpd-handler
                 :port xwidget-apps/http-server-port :host "localhost")
+
+  (xwidget-webkit-new-session (format "http://localhost:%d/" xwidget-apps/http-server-port))
   )
 
 (defun xwidget-apps/stop ()
@@ -122,8 +125,8 @@
 ;; (websocket-send-text org-mindmap-live/ws-server-conn "HILO")
 
 ;;;###autoload
-(define-minor-mode xwidget-apps
-  nil nil nil nil
+(define-minor-mode xwidget-apps-mode
+  "Xwidget-apps enables some plugins that displays html content via xwidget."
   :global t
   (if xwidget-apps-mode
       (xwidget-apps/start)
