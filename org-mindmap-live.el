@@ -1,4 +1,6 @@
-;;; org-mindmap-live.el --- Org Mind Map Live Server -*- lexical-binding:t -*-
+;;; xwidget-apps.el --- Apps based on Emacs xwidget -*- lexical-binding:t -*-
+;;; Current available apps:
+;;;   - Org Mind Map Live (org-mindmap-live)
 ;;; Commentary:
 
 (require 'websocket)
@@ -47,7 +49,28 @@
     ""
   ))
 
-(defun org-mindmap-live/ws-on-message (ws frame)
+
+;;; Websocket server for xwidget-apps
+
+(defcustom xwidget-apps/ws-server-port 12302
+  "Websocket server port."
+  :type 'number)
+(defcustom xwidget-apps/http-server-port 12301
+  "Http server port."
+  :type 'number)
+
+
+(defvar xwidget-apps/ws-server-conn nil
+  "Websocket connection.")
+
+(defvar xwidget-apps/httpd-routes
+  `(
+    ("js/d3@7.js" . ,(elnode-make-send-file "./js/d3@7.js"))
+    ("js/markmap-view.js" . ,(elnode-make-send-file "./js/markmap-view.js"))
+    ("/" . ,(elnode-make-send-file "./App.html"))))
+
+
+(defun xwidget-apps/ws-on-message (ws frame)
   "Handle message of FRAME on WS."
   ;; (print (websocket-frame-text frame))
   (let ((json (org-mindmap-live/export-current-org-to-json)))
@@ -55,46 +78,56 @@
     (ignore-errors
       (websocket-send-text ws json))))
 
-(defun org-mindmap-live/ws-on-close (ws frame)
+(defun xwidget-apps/ws-on-close (ws frame)
   "Handle message of FRAME on WS."
   (websocket-send-text
    ws (websocket-frame-text frame)))
 
-(defun org-mindmap-live/ws-on-open (ws)
+(defun xwidget-apps/ws-on-open (ws)
   "Handle open of WS."
   (message "OPEN")
   )
 
-(defvar org-mindmap-live/ws-server-conn nil
-  "Websocket connection.")
-
-(if org-mindmap-live/ws-server-conn
-    (websocket-server-close org-mindmap-live/ws-server-conn))
-
-(setq org-mindmap-live/ws-server-conn
-      (websocket-server
-       12302
-       :host 'local
-       :on-open #'org-mindmap-live/ws-on-open
-       :on-message #'org-mindmap-live/ws-on-message))
-
-;; (websocket-send-text org-mindmap-live/ws-server-conn "HILO")
-
-(elnode-stop 12301)
-
-(defvar org-mindmap-live/httpd-routes
-  `(
-    ("js/d3@7.js" . ,(elnode-make-send-file "./js/d3@7.js"))
-    ("js/markmap-view.js" . ,(elnode-make-send-file "./js/markmap-view.js"))
-    ("/" . ,(elnode-make-send-file "./App.html"))))
-(defun org-mindmap-live/httpd-handler (httpcon)
+(defun xwidget-apps/httpd-handler (httpcon)
   "The handler to serve html mindmap file through HTTPCON."
   ;; (elnode-http-start httpcon 200 '("Content-type" . "text/html"))
   ;; (elnode-send-file httpcon "./App.html")
-  (elnode-hostpath-dispatcher httpcon org-mindmap-live/httpd-routes))
-
-(elnode-start #'org-mindmap-live/httpd-handler :port 12301 :host "localhost")
+  (elnode-hostpath-dispatcher httpcon xwidget-apps/httpd-routes))
 
 
-(provide 'org-mindmap-live)
-;;; org-mindmap-live.el ends here
+(defun xwidget-apps/start ()
+  "Start xwidget apps servers."
+  (xwidget-apps/stop)
+  (setq xwidget-apps/ws-server-conn
+        (websocket-server
+         xwidget-apps/ws-server-port
+         :host 'local
+         :on-open #'xwidget-apps/ws-on-open
+         :on-message #'xwidget-apps/ws-on-message))
+
+  (elnode-start #'xwidget-apps/httpd-handler
+                :port xwidget-apps/http-server-port :host "localhost")
+  )
+
+(defun xwidget-apps/stop ()
+  "Stop the xwidget apps servers."
+  (if xwidget-apps/ws-server-conn
+      (progn
+        (websocket-server-close xwidget-apps/ws-server-conn)
+        (setq xwidget-apps/ws-server-conn nil))
+    )
+  (elnode-stop xwidget-apps/http-server-port)
+  )
+
+;; (websocket-send-text org-mindmap-live/ws-server-conn "HILO")
+
+;;;###autoload
+(define-minor-mode xwidget-apps
+  nil nil nil nil
+  :global t
+  (if xwidget-apps-mode
+      (xwidget-apps/start)
+    (xwidget-apps/stop)))
+
+(provide 'xwidget-apps)
+;;; xwidget-apps.el ends here
