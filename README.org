@@ -1,13 +1,15 @@
-* org-mindmap-live
+* Emacs Xwidget Apps
 
-The project is in early alpha.
+Emacs can leverage xwidget to display web content in buffers.
+This repo contains some Emacs apps that display themselves via xwidget.
+
+The project is in early alpha and the only available app is org-mind-map-live which shows the org headers as mindmaps.
 
 ** How to use
 
-Evaluate the `org-mindmap-live.el` file and open http://localhost:12301 with `xwidget-webkit-browse-url`.
-Of course you can also use your own browser.
-
-Note that the mind map only changes if the current Emacs buffer is in the org major-mode.
+1. Get and evaluate the `xwidget-apps.el` file;
+2. Enable the `xwidget-apps-mode`. An xwidget buffer should appear automatically, where the mind map app is presented.
+3. Split the window and open an org file, the mind map will be updated on the fly.
 
 ** Demo
 
