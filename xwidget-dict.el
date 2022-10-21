@@ -19,6 +19,8 @@
     (setq xwidget-dict--session (xwidget-webkit-last-session))
   ))
 
+;; We have to patch the xwidget-webkit-callback function to inject js code after a page is fully loaded.
+(defvar xwidget-webkit-loaded-hook nil "Hook functions to run when a page is loaded.")
 (defun xwidget-webkit-callback (xwidget xwidget-event-type)
   "Callback for xwidgets.
 XWIDGET instance, XWIDGET-EVENT-TYPE depends on the originating xwidget."
@@ -60,7 +62,7 @@ XWIDGET instance, XWIDGET-EVENT-TYPE depends on the originating xwidget."
                    `((?T . ,title)
                      (?U . ,uri)))
                   t)
-                 (xwidget-dict-apply-js-onload)
+                 (run-hooks 'xwidget-webkit-loaded-hook)
                  ))))
           ((eq xwidget-event-type 'decide-policy)
            (let ((strarg  (nth 3 last-input-event)))
@@ -127,6 +129,16 @@ XWIDGET instance, XWIDGET-EVENT-TYPE depends on the originating xwidget."
                            (buffer-substring-no-properties (region-beginning)
                                                            (region-end))
                          (thing-at-point 'word t))))
+
+(defun xwidget-dict-enable()
+  "Enable app."
+  (add-hook 'xwidget-webkit-loaded-hook #'xwidget-dict-apply-js-onload)
+  )
+
+(defun xwidget-dict-disable()
+  "Disable app."
+  (remove-hook 'xwidget-webkit-loaded-hook #'xwidget-dict-apply-js-onload)
+  )
 
 (provide 'xwidget-dict)
 ;;; xwidget-dict.el ends here.
