@@ -140,5 +140,13 @@ XWIDGET instance, XWIDGET-EVENT-TYPE depends on the originating xwidget."
   (remove-hook 'xwidget-webkit-loaded-hook #'xwidget-dict-apply-js-onload)
   )
 
+;;;###autoload
+(define-minor-mode xwidget-dict-mode
+  "Online dictionary using xwidget."
+  :global t
+  (if xwidget-dict-mode
+      (xwidget-dict-enable)
+    (xwidget-dict-disable)))
+
 (provide 'xwidget-dict)
 ;;; xwidget-dict.el ends here.

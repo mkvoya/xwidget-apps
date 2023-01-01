@@ -7,6 +7,7 @@
 (require 'org-element)
 (require 'elnode)
 (require 'xwidget)
+(require 'xwidget-dict)
 
 ;;; Code:
 
@@ -104,16 +105,20 @@
          xwidget-apps/ws-server-port
          :host 'local
          :on-open #'xwidget-apps/ws-on-open
-         :on-message #'xwidget-apps/ws-on-message))
+         :on-message #'xwidget-apps/ws-on-message)
+        )
 
   (elnode-start #'xwidget-apps/httpd-handler
                 :port xwidget-apps/http-server-port :host "localhost")
 
   (xwidget-webkit-new-session (format "http://localhost:%d/" xwidget-apps/http-server-port))
+
+  (xwidget-dict-enable)
   )
 
 (defun xwidget-apps/stop ()
   "Stop the xwidget apps servers."
+  (xwidget-dict-disable)
   (if xwidget-apps/ws-server-conn
       (progn
         (websocket-server-close xwidget-apps/ws-server-conn)
