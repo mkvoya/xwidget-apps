@@ -16,46 +16,42 @@
 (defcustom xwidget-apps/ws-server-port 12302
   "Websocket server port."
   :type 'number)
+
 (defcustom xwidget-apps/http-server-port 12301
   "Http server port."
   :type 'number)
 
-
 (defvar xwidget-apps/ws-server-conn nil
   "Websocket connection.")
 
-(defvar xwidget-apps/httpd-routes
-  `(
-    ("js/d3@7.js" . ,(elnode-make-send-file "./js/d3@7.js"))
-    ("js/markmap-view.js" . ,(elnode-make-send-file "./js/markmap-view.js"))
-    ("/" . ,(elnode-make-send-file "./App.html"))))
-
-(cl-defmethod on-ws-message ((app xwidget-app) ws frame)
-  "Handle message of FRAME on WS for the app APP."
+(cl-defstruct xwidget-app
+  name
+  httpd-path
+  httpd-dispatch
+  start
+  stop
+  ws-on-message
+  ws-on-open
+  ws-on-close
   )
 
-(cl-defmethod on-ws-close ((app xwidget-app) ws frame)
-  "Handle close of FRAME on WS for the app APP."
-  )
-
-(cl-defmethod on-ws-open ((app xwidget-app) ws frame)
-  "Handle open of FRAME on WS for the app APP."
-  )
-
-(cl-defmethod start((app xwidget-app))
-  "Start for the app APP."
-  )
-(cl-defmethod stop((app xwidget-app))
-  "Stop for the app APP."
-  )
-
+(defvar xwidget-app-list (list) "A list of xwidget apps.")
 
 (defun xwidget-apps/httpd-handler (httpcon)
   "The handler to serve html mindmap file through HTTPCON."
   ;; (elnode-http-start httpcon 200 '("Content-type" . "text/html"))
   ;; (elnode-send-file httpcon "./App.html")
-  (elnode-hostpath-dispatcher httpcon xwidget-apps/httpd-routes))
 
+  (let* ((path (elnode-http-pathinfo httpcon))
+         ;; find the app serving the path
+         (app (-find #'(lambda (x) (string-prefix-p (xwidget-app-httpd-path x) path))
+                     xwidget-app-list)))
+    (if app
+        ;; use app's httpd routes
+        (funcall (xwidget-app-httpd-dispatch app) httpcon)
+      (elnode-http-start httpcon 404)
+      )
+    ))
 
 (defun xwidget-apps/ws-on-message (ws frame)
   "Handle message of FRAME on WS."
@@ -69,6 +65,7 @@
   "Handle message of FRAME on WS."
   (websocket-send-text
    ws (websocket-frame-text frame)))
+
 ;;; Abstract class for xwidget app.
 (defclass xwidget-app () ; No superclasses
   ()
@@ -78,13 +75,6 @@
 (defun xwidget-apps/ws-on-open (ws)
   "Handle open of WS."
   (message "OPEN"))
-
-(defvar xwidget-app-list () "A list of xwidget apps.")
-
-(defun xiwdget-apps/register (class)
-  "Register an object given CLASS name."
-  (add-to-list 'xwidget-app-list (make-instance class))
-  )
 
 (defun reduce-class-method (method object)
   "Reduce the first parameter of METHOD  with given OBJECT and passes REST"
@@ -106,16 +96,15 @@
   (elnode-start #'xwidget-apps/httpd-handler
                 :port xwidget-apps/http-server-port :host "localhost")
 
-  (-each xwidget-app-list #'(lambda (app) (start app)))
+  (-each xwidget-app-list #'(lambda (app) (funcall (xwidget-app-start app))))
 
   ;; (xwidget-webkit-new-session (format "http://localhost:%d/" xwidget-apps/http-server-port))
 
-  ;; (xwidget-dict-enable)
   )
 
 (defun xwidget-apps/stop ()
   "Stop the xwidget apps servers."
-  ;; (xwidget-dict-disable)
+  (-each xwidget-app-list #'(lambda (app) (funcall (xwidget-app-stop app))))
   (if xwidget-apps/ws-server-conn
       (progn
         (websocket-server-close xwidget-apps/ws-server-conn)

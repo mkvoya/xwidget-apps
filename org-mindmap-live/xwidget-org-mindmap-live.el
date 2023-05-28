@@ -52,34 +52,86 @@
 
 ;;; Websocket server for xwidget-apps
 
-(defclass org-mindmap-live (xwidget-app)
-  ()
-  "The org-mindmap-live app inheriting xwidget-app.")
-
-(cl-defmethod on-ws-message ((app org-mindmap-live) ws frame)
-  "Handle message of FRAME on WS for the app APP."
+(defun org-mindmap-live/ws-on-message (ws frame)
+  "Handle message of FRAME on WS."
   ;; (print (websocket-frame-text frame))
   (let ((json (org-mindmap-live/export-current-org-to-json)))
     ;; (message json)
     (ignore-errors
       (websocket-send-text ws json))))
-  )
 
-(cl-defmethod on-ws-close ((app org-mindmap-live) ws frame)
-  "Handle close of FRAME on WS for the app APP."
+(defun org-mindmap-live/ws-on-close (ws frame)
+  "Handle close of FRAME on WS."
   (websocket-send-text
    ws (websocket-frame-text frame)))
-  )
 
-(cl-defmethod on-ws-open ((app org-mindmap-live) ws frame)
-  "Handle open of FRAME on WS for the app APP."
+(defun org-mindmap-live/ws-on-open (ws frame)
+  "Handle open of FRAME on WS."
   (message "OPEN on org-mindmap-live")
   )
 
-(cl-defmethod start ((app org-mindmap-live))
-"Start."
-()
-)
+(defun org-mindmap-live/start ()
+  "Start org-mindmap-live."
+  (message "start org-mindmap-live.")
+  )
+
+(defun org-mindmap-live/stop ()
+  "Stop org-mindmap-live."
+  (message "stop org-mindmap-live.")
+  )
+
+
+(defconst org-mindmap-live/name "org-mindmap-live")
+(defconst org-mindmap-live/httpd-path "/org-mindmap-live")
+(defconst org-mindmap-live/base-path (file-name-directory
+                                      (or load-file-name buffer-file-name)))
+
+(defun org-mindmap-live/httpd-dispatch (httpcon)
+  "Dispatch HTTPCON."
+  (let* ((path (elnode-http-pathinfo httpcon))
+         (relpath (substring path (length org-mindmap-live/httpd-path)))
+         (filepath nil))
+    (cl-assert (string-prefix-p org-mindmap-live/httpd-path path)
+               t "path is wrong: %s")
+    (print relpath)
+    (print (expand-file-name "."))
+    (cond
+     ((string= relpath "/")
+      (setq filepath "./App.html"))
+     ((string= relpath "/js/d3@7.js")
+      (setq filepath "./js/d3@7.js"))
+     ((string= relpath "/js/markmap-view.js")
+      (setq filepath "./js/markmap-view.js"))
+     )
+    (if filepath
+        (progn
+          (elnode-http-start httpcon 200 '("Content-type" . "text/html"))
+          (elnode-send-file httpcon (expand-file-name filepath org-mindmap-live/base-path))))
+        (elnode-http-start httpcon 404)))
+
+
+(defun org-mindmap-live/register (class)
+  "Register an object given CLASS name."
+  (add-to-list 'xwidget-app-list
+               (make-xwidget-app
+                :name org-mindmap-live/name
+                :httpd-path org-mindmap-live/httpd-path
+                :httpd-dispatch #'org-mindmap-live/httpd-dispatch
+                :start #'org-mindmap-live/start
+                :stop #'org-mindmap-live/stop
+                :ws-on-open #'org-mindmap-live/ws-on-open
+                :ws-on-close #'org-mindmap-live/ws-on-close
+                :ws-on-message #'org-mindmap-live/ws-on-message
+                ))
+  )
+
+(defun org-mindmap-live/unregister (class)
+  "Unregister an object given CLASS name."
+  (setq xwidget-app-list
+        (-remove (lambda (app) (string= "org-mindmap-live" (xwidget-app-name app)))
+                 xwidget-app-list))
+  )
+
 
 (provide 'xwidget-org-mindmap-live)
 ;;; xwidget-apps.el ends here
