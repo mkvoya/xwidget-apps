@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+<head>
+  <title> Ebib Timeline </title>
+  <!-- <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/d3@6"></script> -->
+  <!-- <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/markmap-view"></script> -->
+  <script type="text/javascript" src="js/d3@7.js"></script>
+  <script type="text/javascript" src="js/markmap-view.js"></script>
+  <style type="text/css">
+    #app {
+        font-family: Avenir, Helvetica, Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-align: center;
+        color: #2c3e50;
+        /* margin-top: 60px; */
+        width: 100%;
+        height: 100%;
+    }
+
+    html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+  </style>
+</head>
+<body onload="onLoad();" onresize="onResize()">
+  <script type="text/javascript">document.write(getTimeline());</script>
+  <div class="controls" id="my-timeline-controls"></div><br/>
+  <div class="controls" id="my-other-controls"></div>
+
+  <!-- 1 -->
+  <link title="timeline-styles" rel="stylesheet"
+        href="https://cdn.knightlab.com/libs/timeline3/latest/css/timeline.css">
+
+  <!-- 2 -->
+  <script src="https://cdn.knightlab.com/libs/timeline3/latest/js/timeline.js"></script>
+
+  <div id='timeline-embed' style="width: 100%; height: 100%"></div>
+
+  <!-- 3 -->
+  <script type="text/javascript">
+    // The TL.Timeline constructor takes at least two arguments:
+    // the id of the Timeline container (no '#'), and
+    // the URL to your JSON data file or Google spreadsheet.
+    // the id must refer to an element "above" this code,
+    // and the element must have CSS styling to give it width and height
+    // optionally, a third argument with configuration options can be passed.
+    // See below for more about options.
+    var timeline_json = get_ebib();
+    timeline = new TL.Timeline('timeline-embed', timeline_json);
+  </script>
+
+  <script type="text/javascript">
+    function setup_ws () {
+        console.log("Starting the websocket...")
+        let conn = new WebSocket("ws://127.0.0.1:12302")
+        let old_data = null;
+        console.log(conn)
+        conn.onmessage = function (event) {
+            // console.log(event)
+            if (event.data.length && event.data != old_data) {
+                // console.log(event.data)
+                old_data = event.data;
+                let obj = JSON.parse(event.data)
+                console.log(obj)
+                window.markmap.setData(obj)
+                window.markmap.fit()
+            }
+        },
+        conn.onopen = function (event) {
+            console.log("Websocket connection established.")
+            console.log(event)
+        }
+        window.ws = {
+            conn: conn,
+            sendMsg: function (msg) {
+                this.conn.send(msg)
+            }
+        }
+    }
+
+    setup_ws()
+    setInterval(function () {
+        window.ws.sendMsg("update")
+    }, 500)
+
+  </script>
+
+
+</body>
+</html>
+</html>

@@ -11,47 +11,6 @@
 
 ;;; Code:
 
-(defun org-mindmap-live/build-node (node children)
-  "Generate a NODE with CHILDREN."
-  `((t . "heading")  ; type
-    (v . ,node)      ; label
-    (d . 1)          ; depth
-    (p . nil)        ; depth
-    (c . ,children)) ; children
-  )
-
-(defun org-mindmap-live/export-hl-subtree (hl)
-  "Export a headline subtree of HL."
-  (let* ((title (org-element-property :title hl))
-         (children (vector)))
-    (dolist (sub-hl (nthcdr 2 hl) children)
-      (let ((subtree (org-mindmap-live/export-hl-subtree sub-hl)))
-        (setq children (vconcat children (vector subtree)))))
-    (org-mindmap-live/build-node title children)))
-
-(defun org-mindmap-live/export-tree ()
-  "Export tree of org doc."
-  (let ((top-nodes (vector)))
-    (org-element-map (org-element-parse-buffer 'headline) 'headline
-      (lambda (hl)
-        (let ((parent (org-element-property :parent hl)))
-          (unless (eq (org-element-type parent) 'headline)
-            (setq top-nodes (vconcat top-nodes (vector (org-mindmap-live/export-hl-subtree hl))))))))
-    (org-mindmap-live/build-node "Main" top-nodes)))
-
-(defun org-mindmap-live/export-json ()
-  "Export json of org doc."
-  (json-encode (org-mindmap-live/export-tree))
-  )
-
-(defun org-mindmap-live/export-current-org-to-json ()
-  "Export if current buffer is org."
-  (if (equal major-mode 'org-mode)
-      (org-mindmap-live/export-json)
-    ""
-  ))
-
-
 ;;; Websocket server for xwidget-apps
 
 (defcustom xwidget-apps/ws-server-port 12302
@@ -71,6 +30,32 @@
     ("js/markmap-view.js" . ,(elnode-make-send-file "./js/markmap-view.js"))
     ("/" . ,(elnode-make-send-file "./App.html"))))
 
+(cl-defmethod on-ws-message ((app xwidget-app) ws frame)
+  "Handle message of FRAME on WS for the app APP."
+  )
+
+(cl-defmethod on-ws-close ((app xwidget-app) ws frame)
+  "Handle close of FRAME on WS for the app APP."
+  )
+
+(cl-defmethod on-ws-open ((app xwidget-app) ws frame)
+  "Handle open of FRAME on WS for the app APP."
+  )
+
+(cl-defmethod start((app xwidget-app))
+  "Start for the app APP."
+  )
+(cl-defmethod stop((app xwidget-app))
+  "Stop for the app APP."
+  )
+
+
+(defun xwidget-apps/httpd-handler (httpcon)
+  "The handler to serve html mindmap file through HTTPCON."
+  ;; (elnode-http-start httpcon 200 '("Content-type" . "text/html"))
+  ;; (elnode-send-file httpcon "./App.html")
+  (elnode-hostpath-dispatcher httpcon xwidget-apps/httpd-routes))
+
 
 (defun xwidget-apps/ws-on-message (ws frame)
   "Handle message of FRAME on WS."
@@ -84,18 +69,28 @@
   "Handle message of FRAME on WS."
   (websocket-send-text
    ws (websocket-frame-text frame)))
+;;; Abstract class for xwidget app.
+(defclass xwidget-app () ; No superclasses
+  ()
+  "An abstract class for xwidget-app."
+  )
 
 (defun xwidget-apps/ws-on-open (ws)
   "Handle open of WS."
-  (message "OPEN")
+  (message "OPEN"))
+
+(defvar xwidget-app-list () "A list of xwidget apps.")
+
+(defun xiwdget-apps/register (class)
+  "Register an object given CLASS name."
+  (add-to-list 'xwidget-app-list (make-instance class))
   )
 
-(defun xwidget-apps/httpd-handler (httpcon)
-  "The handler to serve html mindmap file through HTTPCON."
-  ;; (elnode-http-start httpcon 200 '("Content-type" . "text/html"))
-  ;; (elnode-send-file httpcon "./App.html")
-  (elnode-hostpath-dispatcher httpcon xwidget-apps/httpd-routes))
-
+(defun reduce-class-method (method object)
+  "Reduce the first parameter of METHOD  with given OBJECT and passes REST"
+  (lambda (&rest args)
+    (apply method object args))
+  )
 
 (defun xwidget-apps/start ()
   "Start xwidget apps servers."
@@ -111,14 +106,16 @@
   (elnode-start #'xwidget-apps/httpd-handler
                 :port xwidget-apps/http-server-port :host "localhost")
 
-  (xwidget-webkit-new-session (format "http://localhost:%d/" xwidget-apps/http-server-port))
+  (-each xwidget-app-list #'(lambda (app) (start app)))
 
-  (xwidget-dict-enable)
+  ;; (xwidget-webkit-new-session (format "http://localhost:%d/" xwidget-apps/http-server-port))
+
+  ;; (xwidget-dict-enable)
   )
 
 (defun xwidget-apps/stop ()
   "Stop the xwidget apps servers."
-  (xwidget-dict-disable)
+  ;; (xwidget-dict-disable)
   (if xwidget-apps/ws-server-conn
       (progn
         (websocket-server-close xwidget-apps/ws-server-conn)
